@@ -1,0 +1,22 @@
+@import "../../../assets/scss/variables";
+.header-page {
+  background-color: $white-color;
+  height: 25px;
+  padding: 16px 0;
+  .header-logo {
+    width: 100%;
+    height: auto;
+  }
+  .header-link {
+    color: #000;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 400;
+    line-height: 18px;
+    &.active,
+    &:hover,
+    &:active {
+      color: $primary-color;
+    }
+  }
+}
