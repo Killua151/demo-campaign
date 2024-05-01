@@ -20,6 +20,8 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import Tooltip from '@mui/material/Tooltip';
+import DeleteIcon from '@mui/icons-material/Delete';
 import { 
   CampaignData,
 } from "../utils/types";
@@ -76,7 +78,7 @@ const headCells: readonly HeadCell[] = [
     id: 'quantity',
     numeric: true,
     disablePadding: false,
-    label: 'Số lượng',
+    label: 'Số lượng*',
   },
 ];
 
@@ -84,11 +86,12 @@ interface EnhancedTableProps {
   numSelected: number;
   onSelectAllClick: (event: React.ChangeEvent<HTMLInputElement>) => void;
   onCreateNewAds: () => void;
+  onRemoveMultiAds: () => void;
   rowCount: number;
 }
 
 function EnhancedTableHead(props: EnhancedTableProps) {
-  const { onSelectAllClick, onCreateNewAds, numSelected, rowCount } =
+  const { onSelectAllClick, onCreateNewAds, onRemoveMultiAds, numSelected, rowCount } =
     props;
 
   return (
@@ -105,7 +108,27 @@ function EnhancedTableHead(props: EnhancedTableProps) {
             }}
           />
         </TableCell>
-        {headCells.map((headCell) => (
+        {
+          numSelected > 0 ? (
+            <>
+            <TableCell>
+              <IconButton color="secondary" aria-label="add new sub campaign"  onClick={() => onRemoveMultiAds()} >
+                <DeleteIcon />
+              </IconButton>
+            </TableCell>
+            <TableCell></TableCell>
+            </>
+          ) : headCells.map((headCell) => (
+            <TableCell
+              key={headCell.id}
+              // align={headCell.numeric ? 'right' : 'left'}
+              padding={headCell.disablePadding ? 'none' : 'normal'}
+            >
+              {headCell.label}
+            </TableCell>
+          ))
+        }
+        {/* {headCells.map((headCell) => (
           <TableCell
             key={headCell.id}
             // align={headCell.numeric ? 'right' : 'left'}
@@ -113,8 +136,8 @@ function EnhancedTableHead(props: EnhancedTableProps) {
           >
             {headCell.label}
           </TableCell>
-        ))}
-        <TableCell style={{ padding: '0px 16px', width: '120px', textAlign: 'right'}}><Button variant="outlined" onClick={onCreateNewAds}>Thêm</Button></TableCell>
+        ))} */}
+        <TableCell style={{ padding: '0px 16px', width: '120px', textAlign: 'right'}}><Button variant="outlined" onClick={onCreateNewAds} startIcon={<AddIcon />}>Thêm</Button></TableCell>
       </TableRow>
     </TableHead>
   );
@@ -125,10 +148,14 @@ function DemoPageWrapper() {
   const dispatch = useDispatch();
   const [value, setValue] = useState<number>(0);
   const [selected, setSelected] = useState<readonly number[]>([]);
+  const [listSubCampaignIndexError, setListSubCampaignIndexError] = useState<readonly number[]>([]);
   const [subCampaignIndexActive, setSubCampaignIndexActive] = useState<number>(0);
   const [campaignName, setCampaignName] = useState<string>('');
   const [campaignNameError, setCampaignNameError] = useState<boolean>(false);
   const [campaignNameHelperText, setCampaignNameHelperText] = useState<string>('');
+  const [subCampaignNameError, setSubCampaignNameError] = useState<boolean>(false);
+  const [subCampaignNameHelperText, setSubCampaignNameHelperText] = useState<string>('');
+  const [isSubmitted, setIsSubmitted] = useState<boolean>(false);
   const [campaignData, setCampaignData] = useState<CampaignData>({
     campaign: {
       information: {
@@ -168,10 +195,44 @@ function DemoPageWrapper() {
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    // console.log('campaign data: ', campaignData)
+    let isValidateCampaignData = true;
+    let isValidateSubCampaignData = true;
+    setIsSubmitted(true);
     if (!campaignName) {
       setCampaignNameHelperText('Dữ liệu không hợp lệ');
       setCampaignNameError(true);
+      isValidateCampaignData = false;
+    }
+    let listSubCampaign = [...campaignData.campaign.subCampaigns];
+    var listIndexError = [...listSubCampaignIndexError];
+
+    listSubCampaign.map((c:any, index: number) => {
+      let currentSubCampaignIndex = index;
+
+      if(!c.name) {
+        isValidateSubCampaignData = false;
+        listIndexError.push(index)
+        setSubCampaignNameHelperText('Dữ liệu không hợp lệ');
+        setSubCampaignNameError(true);
+      } else {
+        isValidateSubCampaignData = true;
+        setSubCampaignNameError(false);
+        setSubCampaignNameHelperText('');
+      }
+
+      c.ads.map((a:any, index: number) => {
+        if(!a.name || a.quantity === 0) {
+          isValidateSubCampaignData = false;
+          listIndexError.push(currentSubCampaignIndex)
+        } else {
+          isValidateSubCampaignData = true;
+        }
+      })
+    })
+    setListSubCampaignIndexError(listIndexError.filter((x, i, a) => a.indexOf(x) == i));
+    
+    if(!isValidateCampaignData || !isValidateSubCampaignData) {
+      return alert('Vui lòng điền đúng và đầy đủ thông tin')
     }
   };
   
@@ -240,7 +301,6 @@ function DemoPageWrapper() {
   const isSelected = (id: number) => selected.indexOf(id) !== -1;
 
   const handleAddAds = () => {
-    // console.log("tét")
     let newCampaignData = {...campaignData};
     newCampaignData.campaign.subCampaigns[subCampaignIndexActive].ads = [
       ...campaignData.campaign.subCampaigns[subCampaignIndexActive].ads,
@@ -253,9 +313,52 @@ function DemoPageWrapper() {
   }
 
   const handleAdsNameChange = (event: React.ChangeEvent<HTMLInputElement>, index: number) => {
-    // setSubCampaignIndexActive(index);
     let newCampaignData = {...campaignData};
     newCampaignData.campaign.subCampaigns[subCampaignIndexActive].ads[index].name = (event.target as HTMLInputElement).value;
+    setCampaignData(newCampaignData);
+
+    let totalEmptyAds = campaignData?.campaign?.subCampaigns[subCampaignIndexActive]?.ads?.filter(a => !a.name)
+    if (isSubmitted) {
+      if(totalEmptyAds.length == 0) {
+        let newList = [...listSubCampaignIndexError].filter(i => i != subCampaignIndexActive);
+        setListSubCampaignIndexError(newList);
+        
+        
+      } else {
+        let listIndex = [...listSubCampaignIndexError, subCampaignIndexActive];
+        setListSubCampaignIndexError(listIndex);
+      }
+    }
+  }
+
+  const handleAdsQuantityChange = (event: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    let newCampaignData = {...campaignData};
+    newCampaignData.campaign.subCampaigns[subCampaignIndexActive].ads[index].quantity = Number((event.target as HTMLInputElement).value);
+    setCampaignData(newCampaignData);
+
+    let totalEmptyAds = campaignData?.campaign?.subCampaigns[subCampaignIndexActive]?.ads?.filter(a => a.quantity == 0)
+    if (isSubmitted) {
+      if(totalEmptyAds.length == 0) {
+        let newList = [...listSubCampaignIndexError].filter(i => i != subCampaignIndexActive);
+        setListSubCampaignIndexError(newList);
+        
+        
+      } else {
+        let listIndex = [...listSubCampaignIndexError, subCampaignIndexActive];
+        setListSubCampaignIndexError(listIndex);
+      }
+    }
+  }
+
+  const handleRemoveAds = (event: React.MouseEvent<unknown>, index: number) => {
+    let newCampaignData = {...campaignData};
+    newCampaignData.campaign.subCampaigns[subCampaignIndexActive].ads.splice(index, 1);
+    setCampaignData(newCampaignData);
+  }
+
+  const handleRemoveMultiAds = (listIndex: any) => {
+    let newCampaignData = {...campaignData};
+    newCampaignData.campaign.subCampaigns[subCampaignIndexActive].ads = newCampaignData.campaign.subCampaigns[subCampaignIndexActive].ads.filter((a: any, index: number) => !listIndex.includes(index));
     setCampaignData(newCampaignData);
   }
 
@@ -314,19 +417,37 @@ function DemoPageWrapper() {
                         </Grid>
                           {
                             campaignData?.campaign?.subCampaigns.map((subCampaign, index) => (
-                              <a onClick={(e) => handleSelectSubCampaign(e, index)}>
+                              <div onClick={(e) => handleSelectSubCampaign(e, index)}>
                                 <Grid item xs="auto">
                                 <Paper  elevation={1} style={{ width: '210px', height: '120px', marginLeft: '16px', cursor: 'pointer', border: index === subCampaignIndexActive ? '2px solid #2196f3' : '2px solid #fafafa' }} >
                                   <CardContent>
                                     <Typography variant="h6" gutterBottom style={{ whiteSpace: 'normal', wordBreak: 'break-all'}}>
-                                      {`${subCampaign.name}`} <CheckCircleIcon style={{ fontSize: '14px', color: 'rgb(0, 128, 0)', paddingLeft: '8px'}} />
+                                      <span style={{ color: listSubCampaignIndexError.includes(index) ? 'red' : '#000000de' }}>{`${subCampaign.name}`}</span> 
+                                      <CheckCircleIcon style={{ fontSize: '14px', color: subCampaign.status ? '#008000' : '#8d8d8d', paddingLeft: '8px'}} />
                                     </Typography>
                                     {/* Can use lodash to show with function _.sumBy(objects, 'value'); */}
-                                    <Typography variant="h5" gutterBottom>{subCampaign?.ads?.reduce((a, b) => a + b.quantity, 0)}</Typography>
+                                    <Tooltip 
+                                      title="Số lượng" 
+                                      placement="left" 
+                                      arrow 
+                                      slotProps={{
+                                        popper: {
+                                          modifiers: [
+                                            {
+                                              name: 'offset',
+                                              options: {
+                                                offset: [0, 10],
+                                              },
+                                            },
+                                          ],
+                                        },
+                                      }}>
+                                      <Typography variant="h5" gutterBottom>{subCampaign?.ads?.reduce((a, b) => a + b.quantity, 0)}</Typography>
+                                    </Tooltip>
                                   </CardContent>
                                 </Paper>
                               </Grid>
-                              </a>
+                              </div>
                               
                             ))
                           }
@@ -338,14 +459,14 @@ function DemoPageWrapper() {
                         <Grid item xs={8}>
                           <TextField
                             required
-                            // error={campaignNameError}
+                            error={subCampaignNameError}
                             id="outlined-required"
                             label="Tên chiến dịch con"
                             variant="standard"
                             fullWidth
                             value={campaignData?.campaign?.subCampaigns[subCampaignIndexActive]?.name}
                             onChange={handleSubCampaignNameChange}
-                            // helperText={campaignNameHelperText}
+                            helperText={subCampaignNameHelperText}
                           />
                         </Grid>
                         <Grid item xs={4}>
@@ -355,7 +476,6 @@ function DemoPageWrapper() {
                               <Checkbox 
                                 checked={campaignData?.campaign?.subCampaigns[subCampaignIndexActive]?.status} 
                                 onChange={handleChangeSubCampaignStatus}
-                                // defaultChecked
                                 inputProps={{ 'aria-label': 'controlled' }}
                               />
                             }
@@ -363,70 +483,75 @@ function DemoPageWrapper() {
                         </Grid>
                       </Grid>
                       <Grid container spacing={2}>
-                        <h6>DANH SÁCH QUẢNG CÁO</h6>
-                          <TableContainer>
-                            <Table sx={{ minWidth: 650 }} aria-label="simple table">
-                              <EnhancedTableHead
-                                numSelected={selected.length}
-                                onSelectAllClick={handleSelectAllClick}
-                                onCreateNewAds={handleAddAds}
-                                rowCount={campaignData?.campaign?.subCampaigns[subCampaignIndexActive]?.ads.length}
-                              />
-                              <TableBody>
-                              {campaignData?.campaign?.subCampaigns[subCampaignIndexActive]?.ads.map((ad, index) => {
-                                const isItemSelected = isSelected(index);
-                                const labelId = `enhanced-table-checkbox-${index}`;
+                        <Typography variant="h6" gutterBottom style={{padding: '16px', textAlign: 'left', marginTop: '16px'}}>DANH SÁCH QUẢNG CÁO</Typography>
+                        <TableContainer>
+                          <Table sx={{ minWidth: 650 }} aria-label="simple table">
+                            <EnhancedTableHead
+                              numSelected={selected.length}
+                              onSelectAllClick={handleSelectAllClick}
+                              onCreateNewAds={handleAddAds}
+                              onRemoveMultiAds={() => handleRemoveMultiAds(selected)}
+                              rowCount={campaignData?.campaign?.subCampaigns[subCampaignIndexActive]?.ads.length}
+                            />
+                            <TableBody>
+                            {campaignData?.campaign?.subCampaigns[subCampaignIndexActive]?.ads.map((ad, index) => {
+                              const isItemSelected = isSelected(index);
+                              const labelId = `enhanced-table-checkbox-${index}`;
 
-                                return (
-                                  <TableRow
-                                    hover
-                                    onClick={(event) => handleClick(event, index)}
-                                    role="checkbox"
-                                    aria-checked={isItemSelected}
-                                    tabIndex={-1}
-                                    key={index}
-                                    selected={isItemSelected}
-                                    sx={{ cursor: 'pointer' }}
-                                  >
-                                    <TableCell padding="checkbox">
-                                      <Checkbox
-                                        color="primary"
-                                        checked={isItemSelected}
-                                        inputProps={{
-                                          'aria-labelledby': labelId,
-                                        }}
+                              return (
+                                <TableRow
+                                  hover
+                                  role="checkbox"
+                                  aria-checked={isItemSelected}
+                                  tabIndex={-1}
+                                  key={index}
+                                  selected={isItemSelected}
+                                  sx={{ cursor: 'pointer' }}
+                                >
+                                  <TableCell padding="checkbox">
+                                    <Checkbox
+                                      color="primary"
+                                      checked={isItemSelected}
+                                      inputProps={{
+                                        'aria-labelledby': labelId,
+                                      }}
+                                      onClick={(event) => handleClick(event, index)}
+                                    />
+                                  </TableCell>
+                                  <TableCell >
+                                    <TextField
+                                        required
+                                        error={isSubmitted && !ad.name ? true : false}
+                                        id="outlined-required"
+                                        variant="standard"
+                                        fullWidth
+                                        value={ad.name}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleAdsNameChange(e, index)}
                                       />
-                                    </TableCell>
-                                    <TableCell >
-                                      <TextField
-                                          required
-                                          // error={campaignNameError}
-                                          id="outlined-required"
-                                          variant="standard"
-                                          fullWidth
-                                          value={ad.name}
-                                          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleAdsNameChange(e, index)}
-                                          // helperText={campaignNameHelperText}
-                                        />
-                                    </TableCell>
-                                    <TableCell >
-                                      <TextField
-                                          required
-                                          // error={campaignNameError}
-                                          id="outlined-required"
-                                          variant="standard"
-                                          fullWidth
-                                          value={ad.quantity}
-                                          // onChange={handleCampaignNameChange}
-                                          // helperText={campaignNameHelperText}
-                                        />
-                                    </TableCell>
-                                  </TableRow>
-                                );
-                              })}
-                              </TableBody>
-                            </Table>
-                          </TableContainer>
+                                  </TableCell>
+                                  <TableCell>
+                                    <TextField
+                                        required
+                                        error={isSubmitted && ad.quantity == 0 ? true : false}
+                                        id="outlined-required"
+                                        variant="standard"
+                                        fullWidth
+                                        value={ad.quantity}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleAdsQuantityChange(e, index)}
+                                        inputProps={{ type: 'number'}}
+                                      />
+                                  </TableCell>
+                                  <TableCell style={{ textAlign: 'right'}}>
+                                    <IconButton aria-label="delete" onClick={(e) => handleRemoveAds(e, index)}>
+                                      <DeleteIcon />
+                                    </IconButton>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
                       </Grid>
                     </Grid>
                   </Grid>
