@@ -220,14 +220,19 @@ function DemoPageWrapper() {
         setSubCampaignNameHelperText('');
       }
 
-      c.ads.map((a:any, index: number) => {
-        if(!a.name || a.quantity === 0) {
-          isValidateSubCampaignData = false;
-          listIndexError.push(currentSubCampaignIndex)
-        } else {
-          isValidateSubCampaignData = true;
-        }
-      })
+      if(c.ads.length === 0) {
+        isValidateSubCampaignData = false;
+        listIndexError.push(currentSubCampaignIndex)
+      } else {
+        c.ads.map((a:any, index: number) => {
+          if(!a.name || a.quantity === 0) {
+            isValidateSubCampaignData = false;
+            listIndexError.push(currentSubCampaignIndex)
+          } else {
+            isValidateSubCampaignData = true;
+          }
+        })
+      }
     })
     setListSubCampaignIndexError(listIndexError.filter((x, i, a) => a.indexOf(x) == i));
     
