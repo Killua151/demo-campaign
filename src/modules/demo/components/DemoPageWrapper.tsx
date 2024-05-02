@@ -239,6 +239,7 @@ function DemoPageWrapper() {
     if(!isValidateCampaignData || !isValidateSubCampaignData) {
       return alert('Vui lòng điền đúng và đầy đủ thông tin')
     }
+    alert(`Thêm thành công chiến dịch ${JSON.stringify(campaignData)}`)
   };
   
   const handleAddSubCampaign = () => {
